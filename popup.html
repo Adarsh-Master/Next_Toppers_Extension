@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NextToppers Helper</title>
+  <style>
+    :root{
+      --bg:#0f1115;
+      --card:#131519;
+      --muted:#9aa4b2;
+      --accent:#6ee7b7;
+      --accent-2:#7c5cff;
+      --danger:#ff6b6b;
+      --glass: rgba(255,255,255,0.03);
+      --glass-2: rgba(255,255,255,0.02);
+      --shadow: 0 8px 24px rgba(2,6,23,0.6);
+      --radius:12px;
+      --accent-glow: 0 6px 24px rgba(124,92,255,0.18);
+    }
+
+    /* popup base */
+    html,body{
+      margin:0;padding:0;width:320px;height:420px;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, #08090b 0%, #0e1116 100%);
+      color:#e6eef6;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    .wrap{
+      padding:16px;
+      display:flex;flex-direction:column;gap:12px;
+    }
+
+    header{
+      display:flex;align-items:center;gap:10px;
+    }
+    .logo{
+      width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent-2),var(--accent));
+      box-shadow:var(--accent-glow);
+      display:flex;align-items:center;justify-content:center;font-weight:700;color:#071023;
+      transform:rotate(-6deg);
+    }
+    h1{font-size:16px;margin:0}
+    p.sub{margin:0;font-size:12px;color:var(--muted)}
+
+    .grid{
+      display:grid; grid-template-columns: 1fr 1fr; gap:10px;
+      margin-top:6px;
+    }
+
+    button.primary, button.ghost, button.master {
+      border:0;padding:10px 12px;border-radius:10px;color: #081021;
+      font-weight:600;cursor:pointer;outline:none;backdrop-filter: blur(6px);
+      transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+      box-shadow: var(--shadow);
+      user-select:none;
+    }
+
+    button.primary{
+      background: linear-gradient(135deg,var(--accent-2),var(--accent));
+      width:100%;
+      display:inline-flex;align-items:center;justify-content:center;
+      color:#071023;
+    }
+    button.primary:hover{ transform: translateY(-4px) scale(1.01); box-shadow: 0 12px 40px rgba(124,92,255,0.22)}
+    button.ghost{
+      background: linear-gradient(180deg,var(--glass),var(--glass-2));
+      color:var(--muted);
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    button.ghost:hover{ transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.6)}
+
+    button.master{
+      grid-column: 1 / -1;
+      background: linear-gradient(90deg,#ff8a65,#7c5cff);
+      color:white; font-size:14px;
+      box-shadow: 0 12px 36px rgba(124,92,255,0.18);
+    }
+    .row{display:flex;gap:8px}
+
+    .toggleRow{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.02)}
+    .label{font-size:13px;color:var(--muted)}
+    /* custom switch */
+    .switch{position:relative; width:46px; height:26px;}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{
+      position:absolute; inset:0; background:rgba(255,255,255,0.04); border-radius:20px; transition:.22s;
+      border:1px solid rgba(255,255,255,0.02);
+    }
+    .slider:before{ content:""; position:absolute; left:4px; top:4px; width:18px; height:18px; background:white;border-radius:50%; transition:.22s; transform:translateX(0)}
+    input:checked + .slider{ background: linear-gradient(90deg,#4ade80,#60a5fa) }
+    input:checked + .slider:before{ transform:translateX(20px) }
+
+    .small{font-size:12px;color:var(--muted)}
+
+    footer{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:6px}
+    a.link{ color:var(--muted); font-size:12px; text-decoration:none }
+
+    /* subtle button icons */
+    .ico{margin-right:8px;opacity:0.95}
+
+    /* smooth entering */
+    .wrap{animation: pop .18s cubic-bezier(.2,.9,.3,1);}
+    @keyframes pop { from { transform: translateY(8px); opacity:0 } to { transform:none; opacity:1 } }
+
+button.primary.speed {
+  background: linear-gradient(135deg,#4ade80,#22c55e);
+}
+button.primary.shortcuts {
+  background: linear-gradient(135deg,#60a5fa,#3b82f6);
+}
+button.primary.poll {
+  background: linear-gradient(135deg,#f59e0b,#f97316);
+}
+button.primary.chat {
+  background: linear-gradient(135deg,#ef4444,#dc2626);
+}
+button.primary.paste {
+  background: linear-gradient(135deg,#a855f7,#7c3aed);
+}
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">NT</div>
+      <div>
+        <h1>NextToppers Helper</h1>
+        <p class="sub">Dark mode • shortcuts • poll helper</p>
+      </div>
+    </header>
+
+    <div class="grid">
+  <button id="masterButton" class="master">⚡ Master Unlock</button>
+  <button id="unlockSpeed" class="primary speed">⏩ Unlock Speed</button>
+  <button id="enableShortcuts" class="primary shortcuts">⌨️ Enable Shortcuts</button>
+  <button id="enablePollShortcut" class="primary poll">🗳️ Enable Poll Shortcut</button>
+  <button id="unlockCooldown" class="primary chat">💬 Unlock Chat</button>
+  <button id="unlockPaste" class="primary paste">📋 Enable Copy/Paste</button>
+  <div style="grid-column:1 / -1">
+    <div class="toggleRow" id="reloadRow">
+      <div>
+        <div class="label">Auto Reload</div>
+        <div class="small">Reload active tab every 10s</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="reloadSwitch">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+</div>
+
+    <footer>
+      <div class="small">Shortcuts: 1/2/3 speed • Space play/pause • F fullscreen • P poll • S auto-message</div>
+      <a class="link" href="#" id="about">about</a>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

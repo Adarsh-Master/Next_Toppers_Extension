@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "NextToppers Helper",
+  "version": "2.0",
+  "description": "Unlocks speed, reduces chat cooldown, and optionally reloads the page every 30s.",
+  "permissions": ["tabs", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
