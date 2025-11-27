@@ -13,6 +13,7 @@ const shortcutsBtn = document.getElementById("enableShortcuts");
 const masterBtn = document.getElementById("masterButton");
 const pasteBtn = document.getElementById("unlockPaste");
 const pollBtn = document.getElementById("enablePollShortcut");
+const forceLiveBtn = document.getElementById("forceLive");
 
 /* small helper to inject code into active tab (page context) */
 function execOnPage(fn) {
@@ -744,6 +745,21 @@ pollBtn.addEventListener("click", () => {
     if (window.openPollModal) window.openPollModal();
   });
 });
+
+/* ---------- Force Live (reload tab with isLive=1) ---------- */
+forceLiveBtn.addEventListener("click", () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (!tabs[0]) return;
+
+    const url = new URL(tabs[0].url);
+
+    // Change isLive=0 → isLive=1
+    url.searchParams.set("isLive", "1");
+
+    chrome.tabs.update(tabs[0].id, { url: url.toString() });
+  });
+});
+
 
 /* ---------- Master Button (enables main features) ---------- */
 masterBtn.addEventListener("click", () => {
