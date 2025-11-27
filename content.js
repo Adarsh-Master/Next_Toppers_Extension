@@ -1,3 +1,20 @@
+// ===== AUTO-LIVE =====
+(function () {
+  try {
+    const url = new URL(location.href);
+
+    if (url.searchParams.has("isLive")) {
+      if (url.searchParams.get("isLive") !== "1") {
+        url.searchParams.set("isLive", "1");
+        location.replace(url.toString()); // instant redirect
+      }
+    }
+  } catch (err) {
+    console.error(err);
+  }
+})();
+
+
 (function () {
   const playerElement = document.querySelector('.video-js');
   const video = document.querySelector('video');
