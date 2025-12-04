@@ -1,33 +1,57 @@
-# Next_Toppers_Extension
-This is a full classed extension to get extra feature in next Toppers live class and recorded class
+# ✨ Next Toppers Enhancer Extension (Unofficial)
 
-## How to load Extention
-To load this extention you will be needed to follow the steps given below:-
+> **Supercharge your Next Toppers Live & Recorded Class Experience.**
+> This is a full-featured Chrome extension designed to unlock advanced controls and extra functionality within the Next Toppers platform.
 
-1. download all files of this repo and put them in a folder
-2. open chrome browser
-3. click on 3 dots on right top corner then Extentins > manage extentions
-4. on the top right corner open the developer mode
-5. the click on load extention on top left corner
-6. then click on the folder you have prepared
-7. click on details of extention then in Site access set it to on specefic sites and put the next toppers url- https://nexttoppers.com/
-8. (Optional) - in the left you will see a option as keyboard, click on it and set up a keyboard shortcut for the extention
+---
 
-## How it works
-if you are on to a live class then you will just have to launch the extention and it will start working
-if you are opeaning a recorded lecture then you will have to reload the tab and then load the extention
+## 🚀 Key Features at a Glance
 
-## Features
-i have created it in a manner that everything can be done with the keyboard shortcuts, no need to toggle the extention's popup for every small work
+This extension is built for efficiency, allowing you to control almost everything via **keyboard shortcuts** without constantly needing to open the extension popup.
 
-* **Speed Controls** - if you press 1 and 2 then speed will turn to 1x and 2x respectively. you can also hide and unhide the speed controls by pressing D
+| Feature | Shortcut | Description |
+| :--- | :--- | :--- |
+| **Speed Toggle** | `1` / `2` | Instantly set playback speed to **1x** or **2x**. |
+| **Speed HUD** | `D` | Toggle the visibility of the speed control display. |
+| **Full Screen** | `F` | Enter or Exit Full Screen mode quickly. |
+| **Timer Display** | `T` | Hide or Show the current class time/timer. |
+| **Chat Focus** | `C` | Jump directly into the chat typing box (Outside Full Screen). |
+| **Chat Exit** | `Esc` | Exit the chat typing mode. |
+| **⚡ Chat Bypass** | *N/A* | **Removes the 30-second waiting timer** for sending messages! (Type continuously). |
+| **Automated SPAM** | `S` | Open the spam popup to set a message and the delay (default: 0.1s). Press Enter with blank input to stop. |
+| **Pre-Poll Predictor** | `P` | Open the pre-poll selector. Select an option using Arrow Keys + Enter. It will **automatically mark the selected option** when the poll appears. Press Enter with blank input to stop waiting. |
 
-* **Time Controls** - you can hide or show the current time using T
+---
 
-* **Full Screen Controls** - you can enter or exit full screen mode by pressing F
+## 📥 Installation: Loading the Extension
 
-* **Chat Controls** - if you are not in full screen mode then if you press C then you will be taked to the chat typing box and when you press Esc then you will exit that typing mode. you can also copy and paste the msg and there is no 30 second timer for you. it will atart the timer but you just keep typing and enter and the msg will send
+To use the Next Toppers Enhancer, you must load it manually via Developer Mode in your Chrome browser.
 
-* **SPAM Controls** - press S to open spam popup and then enter the msg and press enter. you can also toggle that after how many secs it will resend the msg(by default it is 0.1 sec). if you wnat to stop spam the open that popup again and press enter when the msg input is blank
+### Step-by-Step Guide:
 
-* **Pre-Poll Controls** - you will have to open the poll tab for that and now press P and the toggle the option no by arrow key and if you are done then press enter and then it will wait for th epoll to come and when the poll had come then it will automatically mark the option which is selected. to stop waiting, again open that popup by pressing P and then press enter while the option input is blank.
+1.  **Download:** Download all files from this repository and place them in a dedicated folder (e.g., `NextToppers-Ext`).
+2.  **Open Extensions:** Open Google Chrome, click the **three dots** (`⋮`) on the top right, navigate to **Extensions** > **Manage Extensions**.
+3.  **Enable Developer Mode:** In the top right corner of the Extensions page, toggle the **Developer Mode** switch **ON**.
+4.  **Load Extension:** Click the **Load unpacked** button in the top-left corner.
+5.  **Select Folder:** Select the folder you prepared in Step 1 (e.g., `NextToppers-Ext`).
+6.  **Crucial Site Access Setting:**
+    * Click on the **Details** button for the newly loaded extension.
+    * Scroll down to **Site access**.
+    * Change the setting from `On all sites` to **On specific sites**.
+    * Add the Next Toppers URL: `https://nexttoppers.com/`
+7.  **Optional: Set Shortcut:** On the main Extensions page, look on the left sidebar for **Keyboard shortcuts**. Click it and set a custom shortcut for the extension to quickly toggle its popup.
+
+---
+
+## 💡 How It Works
+
+The extension injects scripts into the Next Toppers domain to modify the class interface and behavior.
+
+* **Live Class:** Simply launch the extension (open the popup) once you are in the live class to activate all features.
+* **Recorded Lecture:** You may need to **reload the lecture tab** first, and *then* launch the extension to ensure all features load correctly.
+
+---
+
+## 🛡️ Disclaimer
+
+This is an **unofficial** third-party extension created for personal enhancement of the learning experience. Use it responsibly.
