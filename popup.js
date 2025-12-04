@@ -667,12 +667,33 @@ shortcutsBtn.addEventListener("click", () => {
         return;
       }
 
-      // F fullscreen toggle
+      // F fullscreen toggle + Remove Poll Button
       if (e.key.toLowerCase() === "f" && video) {
         e.preventDefault();
         const container = video.closest('.video-js') || video.closest('#videoContainer') || video;
-        if (!document.fullscreenElement) { container.requestFullscreen?.(); container.webkitRequestFullscreen?.(); }
-        else { document.exitFullscreen?.(); document.webkitExitFullscreen?.(); }
+
+        if (!document.fullscreenElement) {
+          // Entering fullscreen
+          container.requestFullscreen?.();
+          container.webkitRequestFullscreen?.();
+
+          // Wait a moment and then try to remove the floating poll button
+          // We use a small timeout to ensure fullscreen transition starts first
+          setTimeout(() => {
+            const pollBtnToRemove = document.getElementById("custom-poll-floating-btn");
+            if (pollBtnToRemove) {
+              pollBtnToRemove.remove();
+              // Optional: Add a flash message to confirm removal (uncomment if you want this feedback)
+              flashMessage('Floating Poll Button Removed', '#ff6b6b');
+            }
+          }, 50); // Small delay
+        }
+        else {
+          // Exiting fullscreen
+          document.exitFullscreen?.();
+          document.webkitExitFullscreen?.();
+          // Note: The poll button will likely reappear on page reload or if the site logic re-adds it
+        }
         return;
       }
 
