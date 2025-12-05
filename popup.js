@@ -667,32 +667,31 @@ shortcutsBtn.addEventListener("click", () => {
         return;
       }
 
-      // F fullscreen toggle + Remove Poll Button
+      // F fullscreen toggle
       if (e.key.toLowerCase() === "f" && video) {
         e.preventDefault();
         const container = video.closest('.video-js') || video.closest('#videoContainer') || video;
 
-        if (!document.fullscreenElement) {
-          // Entering fullscreen
-          container.requestFullscreen?.();
-          container.webkitRequestFullscreen?.();
+        if (!document.fullscreenElement) { 
+          // 1. Entering fullscreen
+          container.requestFullscreen?.(); 
+          container.webkitRequestFullscreen?.(); 
 
-          // Wait a moment and then try to remove the floating poll button
-          // We use a small timeout to ensure fullscreen transition starts first
+          // 2. Wait a moment and then remove the specific div
           setTimeout(() => {
             const pollBtnToRemove = document.getElementById("custom-poll-floating-btn");
             if (pollBtnToRemove) {
               pollBtnToRemove.remove();
-              // Optional: Add a flash message to confirm removal (uncomment if you want this feedback)
-              flashMessage('Floating Poll Button Removed', '#ff6b6b');
+              // Optional: Add a flash message to confirm removal (uncomment the line below if you want this feedback)
+              // flashMessage('Floating Poll Button Removed', '#ff6b6b'); 
             }
-          }, 50); // Small delay
+          }, 50); // Small delay to allow fullscreen transition to start
+
         }
-        else {
+        else { 
           // Exiting fullscreen
-          document.exitFullscreen?.();
-          document.webkitExitFullscreen?.();
-          // Note: The poll button will likely reappear on page reload or if the site logic re-adds it
+          document.exitFullscreen?.(); 
+          document.webkitExitFullscreen?.(); 
         }
         return;
       }
