@@ -671,28 +671,8 @@ shortcutsBtn.addEventListener("click", () => {
       if (e.key.toLowerCase() === "f" && video) {
         e.preventDefault();
         const container = video.closest('.video-js') || video.closest('#videoContainer') || video;
-
-        if (!document.fullscreenElement) { 
-          // 1. Entering fullscreen
-          container.requestFullscreen?.(); 
-          container.webkitRequestFullscreen?.(); 
-
-          // 2. Wait a moment and then remove the specific div
-          setTimeout(() => {
-            const pollBtnToRemove = document.getElementById("custom-poll-floating-btn");
-            if (pollBtnToRemove) {
-              pollBtnToRemove.remove();
-              // Optional: Add a flash message to confirm removal (uncomment the line below if you want this feedback)
-              // flashMessage('Floating Poll Button Removed', '#ff6b6b'); 
-            }
-          }, 50); // Small delay to allow fullscreen transition to start
-
-        }
-        else { 
-          // Exiting fullscreen
-          document.exitFullscreen?.(); 
-          document.webkitExitFullscreen?.(); 
-        }
+        if (!document.fullscreenElement) { container.requestFullscreen?.(); container.webkitRequestFullscreen?.(); }
+        else { document.exitFullscreen?.(); document.webkitExitFullscreen?.(); }
         return;
       }
 
