@@ -192,7 +192,8 @@ unlockBtn.addEventListener("click", () => {
         const now = new Date();
         let hours = now.getHours();
         let minutes = now.getMinutes();
-        hours = hours % 12 || 12;
+        // 24 hr formate || 12 hr formate
+        // hours = hours % 12 || 12;
         if (minutes < 10) minutes = "0" + minutes;
         clock.textContent = `${hours}:${minutes}`;
       }
