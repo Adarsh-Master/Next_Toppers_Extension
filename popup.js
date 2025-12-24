@@ -683,6 +683,8 @@ shortcutsBtn.addEventListener("click", () => {
 
       // C focus chat (you changed earlier from T to C)
       if (e.key.toLowerCase() === "c") {
+        // Automatically click the Live Chat tab at the top of the page
+        document.getElementById("uncontrolled-tab-example-tab-Live Chat")?.click();
         const chat = getChatInput();
         if (chat) { e.preventDefault(); chat.focus(); return; }
       }
@@ -707,7 +709,10 @@ shortcutsBtn.addEventListener("click", () => {
       if (e.key.toLowerCase() === "s") { e.preventDefault(); if (window.openAutoMessageModal) openAutoMessageModal(); return; }
 
       // P open poll modal
-      if (e.key.toLowerCase() === "p") { e.preventDefault(); if (window.openPollModal) openPollModal(); return; }
+      if (e.key.toLowerCase() === "p") {
+          // Automatically click the Live Poll tab at the top of the page
+          document.getElementById("uncontrolled-tab-example-tab-Live Poll")?.click();
+          e.preventDefault(); if (window.openPollModal) openPollModal(); return; }
     });
   });
 });
