@@ -296,6 +296,78 @@ shortcutsBtn.addEventListener("click", () => {
       return false;
     }
 
+
+    /* ===========================
+   AUTO REMOVE POLL BUTTON
+   (ONLY in live class video fullscreen)
+   =========================== */
+    (function () {
+      if (window._nt_poll_auto_remove) return;
+      window._nt_poll_auto_remove = true;
+    
+      const POLL_SELECTOR = "#custom-poll-floating-btn";
+      let pollObserver = null;
+    
+      function isClassVideoFullscreen() {
+        const fs = document.fullscreenElement;
+        if (!fs) return false;
+    
+        return (
+          fs.id === "videoContainer" ||
+          fs.classList?.contains("video-js") ||
+          fs.querySelector?.("video") ||
+          fs.closest?.("#videoContainer")
+        );
+      }
+    
+      function removePollBtn() {
+        const poll = document.querySelector(POLL_SELECTOR);
+        if (poll) {
+          poll.remove();
+          console.log("[NT] Poll floating button removed");
+        }
+      }
+    
+      function startObserver() {
+        if (pollObserver) return;
+    
+        pollObserver = new MutationObserver(() => {
+          if (isClassVideoFullscreen()) {
+            removePollBtn();
+          }
+        });
+    
+        pollObserver.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+      }
+    
+      function stopObserver() {
+        if (pollObserver) {
+          pollObserver.disconnect();
+          pollObserver = null;
+        }
+      }
+    
+      document.addEventListener("fullscreenchange", () => {
+        if (isClassVideoFullscreen()) {
+          removePollBtn();
+          startObserver();
+        } else {
+          stopObserver();
+        }
+      });
+    
+      // If already in class fullscreen when injected
+      if (isClassVideoFullscreen()) {
+        removePollBtn();
+        startObserver();
+      }
+    })();
+
+      
+
     /* ----------
        Modal / Panel helpers
        ---------- */
