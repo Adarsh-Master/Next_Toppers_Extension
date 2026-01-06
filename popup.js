@@ -296,6 +296,106 @@ shortcutsBtn.addEventListener("click", () => {
       return false;
     }
 
+      /* ===========================
+   React-proof Live Chat Pause (YouTube style)
+   =========================== */
+    (function () {
+      if (window.__ntChatPin) return;
+      window.__ntChatPin = true;
+    
+      let pinned = false;
+      let pinnedTop = 0;
+      let chatBox = null;
+      let btn;
+    
+      function findChat() {
+        return document.querySelector(
+          '.chat, .chat-body, .chat_messages, [class*="chat"]'
+        );
+      }
+    
+      function ensureBtn() {
+        if (btn) return btn;
+        btn = document.createElement("div");
+        btn.textContent = "⬇";
+        btn.style.cssText = `
+          position:fixed;
+          right:18px;
+          bottom:120px;
+          width:46px;
+          height:46px;
+          background:#0f172a;
+          color:#fff;
+          border-radius:50%;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-size:22px;
+          cursor:pointer;
+          z-index:2147483647;
+          opacity:0;
+          pointer-events:none;
+          transition:.2s;
+        `;
+        btn.onclick = resume;
+        document.body.appendChild(btn);
+        return btn;
+      }
+    
+      function showBtn() {
+        const b = ensureBtn();
+        b.style.opacity = "1";
+        b.style.pointerEvents = "auto";
+      }
+    
+      function hideBtn() {
+        if (!btn) return;
+        btn.style.opacity = "0";
+        btn.style.pointerEvents = "none";
+      }
+    
+      function resume() {
+        pinned = false;
+        hideBtn();
+        if (chatBox) {
+          chatBox.scrollTop = chatBox.scrollHeight;
+        }
+      }
+    
+      // Detect manual scroll
+      document.addEventListener("wheel", () => {
+        chatBox = chatBox || findChat();
+        if (!chatBox) return;
+    
+        const nearBottom =
+          chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 20;
+    
+        if (!nearBottom) {
+          pinned = true;
+          pinnedTop = chatBox.scrollTop;
+          showBtn();
+        }
+      }, { passive: true });
+    
+      // 🔒 HARD PIN (beats React)
+      setInterval(() => {
+        if (!pinned || !chatBox) return;
+        if (chatBox.scrollTop !== pinnedTop) {
+          chatBox.scrollTop = pinnedTop;
+        }
+      }, 50);
+    
+      // Keyboard ↓
+      document.addEventListener("keydown", (e) => {
+        if (pinned && e.key === "ArrowDown") {
+          e.preventDefault();
+          resume();
+        }
+      });
+    
+    })();
+
+
 
     /* ===========================
    AUTO REMOVE POLL BUTTON
@@ -447,8 +547,8 @@ shortcutsBtn.addEventListener("click", () => {
       const shell = createPanelBottomLeft();
       shell.innerHTML = '';
 
-      const title = document.createElement('div'); title.style = 'font-size:15px;font-weight:700;margin-bottom:8px'; title.textContent = 'Pre-answer Poll';
-      const desc = document.createElement('div'); desc.style='color:rgba(255,255,255,0.72);font-size:13px;margin-bottom:10px'; desc.textContent='Choose option number to pre-select when poll appears.';
+      const title = document.createElement('div'); title.style = 'font-size:15px;font-weight:700;margin-bottom:8px'; title.textContent = 'Auto-answer Poll';
+      const desc = document.createElement('div'); desc.style='color:rgba(255,255,255,0.72);font-size:13px;margin-bottom:10px'; desc.textContent='Choose option number to Auto-select when poll appears.';
       const inputRow = document.createElement('div'); inputRow.style='display:flex;gap:8px;margin-bottom:10px';
       const input = document.createElement('input'); input.type='number'; input.min='1'; input.placeholder='Option #'; input.style='flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#eaf6ff;';
       input.value = window._nt_poll_choice || '';
@@ -460,7 +560,7 @@ shortcutsBtn.addEventListener("click", () => {
 
       inputRow.appendChild(input); inputRow.appendChild(startBtn); inputRow.appendChild(stopBtn);
 
-      const info = document.createElement('div'); info.style='font-size:12px;color:var(--muted);margin-bottom:6px'; info.textContent='Press P to cancel previous pre-poll and start a new one.';
+      const info = document.createElement('div'); info.style='font-size:12px;color:var(--muted);margin-bottom:6px'; info.textContent='Leave it blank and press enter to cancel previous auto-poll.';
 
       shell.appendChild(title); shell.appendChild(desc); shell.appendChild(inputRow); shell.appendChild(info);
 
@@ -489,7 +589,7 @@ shortcutsBtn.addEventListener("click", () => {
         if (window._nt_active_poll_observer) {
           window._nt_active_poll_observer.disconnect();
           window._nt_active_poll_observer = null;
-          flashMessage('Previous pre-poll cancelled', '#e74c3c');
+          flashMessage('Previous auto-poll cancelled', '#e74c3c');
         }
         window._nt_poll_choice = val;
         window._nt_poll_start = Date.now();
@@ -509,7 +609,7 @@ shortcutsBtn.addEventListener("click", () => {
               if (submitBtn) {
                 submitBtn.click();
                 const elapsed = ((Date.now() - window._nt_poll_start)/1000).toFixed(2);
-                flashMessage(`Pre-poll answered in ${elapsed}s`, '#2ecc71');
+                flashMessage(`Auto-poll answered in ${elapsed}s`, '#2ecc71');
               }
             }, 350);
             obs.disconnect();
@@ -528,9 +628,9 @@ shortcutsBtn.addEventListener("click", () => {
         if (window._nt_active_poll_observer) {
           window._nt_active_poll_observer.disconnect();
           window._nt_active_poll_observer = null;
-          flashMessage('Pre-poll stopped', '#e74c3c');
+          flashMessage('Auto-poll stopped', '#e74c3c');
         } else {
-          flashMessage('No active pre-poll', '#f39c12');
+          flashMessage('No active auto-poll', '#f39c12');
         }
         const wrap = document.getElementById('__nt_poll_panel'); if (wrap) wrap.remove();
       });
