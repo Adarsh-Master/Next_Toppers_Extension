@@ -19,7 +19,7 @@ This extension is built for efficiency, allowing you to control almost everythin
 | **Chat Exit** | `Esc` | Exit the chat typing mode. |
 | **⚡ Chat Bypass** | *N/A* | **Removes the 30-second waiting timer** for sending messages! (Type continuously). |
 | **Automated SPAM** | `S` | Open the spam popup to set a message and the delay (default: 0.1s). Press Enter with blank input to stop. |
-| **Pre-Poll Predictor** | `P` | Open the pre-poll selector. Select an option using Arrow Keys + Enter. It will **automatically mark the selected option** when the poll appears. Press Enter with blank input to stop waiting. |
+| **Auto-Poll** | `P` | Open the auto-poll selector. Select an option using Arrow Keys + Enter. It will **automatically mark the selected option** when the poll appears. Press Enter with blank input to stop waiting. |
 
 ---
 
