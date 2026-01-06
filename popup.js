@@ -557,7 +557,7 @@ shortcutsBtn.addEventListener("click", () => {
 
       const timeInput = document.createElement('input');
       timeInput.type = 'number';
-      timeInput.step = '0.1'; timeInput.min = '0.05';
+      timeInput.step = '0.1'; timeInput.min = '0.1';
       timeInput.value = (window._nt_auto_interval_default || '0.1');
       timeInput.style = 'padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:#eaf6ff;width:80px';
 
