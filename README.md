@@ -1,4 +1,4 @@
-# ✨ Next Toppers Enhancer Extension (Unofficial)
+# ✨ Next Toppers Enhancer Extension+ (Unofficial)
 
 > **Supercharge your Next Toppers Live & Recorded Class Experience.**
 > This is a full-featured Chrome extension designed to unlock advanced controls and extra functionality within the Next Toppers platform.
@@ -55,3 +55,8 @@ The extension injects scripts into the Next Toppers domain to modify the class i
 ## 🛡️ Disclaimer
 
 This is an **unofficial** third-party extension created for personal enhancement of the learning experience. Use it responsibly.
+
+
+## FOOTNOTES
+
+This is also working in **Mission JEET** and devlopers are trying to improve this code. please contribute if you feel that you can improve something in thsi repo.
