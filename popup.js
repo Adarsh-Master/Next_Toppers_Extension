@@ -1,21 +1,10 @@
-// popup.js — full updated version (drop-in replacement)
-// Contains: speed UI, shaka-compatible selectors, shortcuts, poll modal (start/stop/enter/up-down),
-// auto-message modal (time input default 0.1 + Enter behavior), clock overlay, D toggle, M mute, etc.
+// popup.js — Complete NextToppers Pro Workspace Engine
 
-/* ----------------------------
-   popup DOM elements (popup.html)
-   ---------------------------- */
-// 🔹 Hide the site's built-in playback rate overlay completely
-const unlockBtn = document.getElementById("unlockSpeed");
-const reloadSwitch = document.getElementById("reloadSwitch");
-const cooldownBtn = document.getElementById("unlockCooldown");
-const shortcutsBtn = document.getElementById("enableShortcuts");
 const masterBtn = document.getElementById("masterButton");
-const pasteBtn = document.getElementById("unlockPaste");
 const pollBtn = document.getElementById("enablePollShortcut");
-const forceLiveBtn = document.getElementById("forceLive");
+const cooldownBtn = document.getElementById("unlockCooldown");
 
-/* small helper to inject code into active tab (page context) */
+/* Helper to inject code directly into the active webpage context */
 function execOnPage(fn) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs[0]) return;
@@ -26,826 +15,448 @@ function execOnPage(fn) {
   });
 }
 
-/* ===========================
-   SPEED UI / CLOCK / HELPERS
-   These are injected into the page when Unlock Speed is clicked.
-   They use robust selectors to work with both old Video.js and new Shaka UI.
-   =========================== */
-unlockBtn.addEventListener("click", () => {
-  execOnPage(() => {
-    if (window._nt_speed_injected) return;
-    window._nt_speed_injected = true;
+/* =========================================================
+   1. SPEED CONTROLS & FLOATING TIME OVERLAYS
+   ========================================================= */
+function injectSpeedAndOverlays() {
+  if (window._nt_speed_injected) return;
+  window._nt_speed_injected = true;
 
+  function getVideo() {
+    return document.querySelector("#vjs_video_3_html5_api")
+      || document.querySelector("video.vjs-tech")
+      || document.querySelector("video")
+      || null;
+  }
+  function getPlayerContainer() {
+    return document.querySelector("#vjs_video_3")
+      || document.querySelector(".video-js")
+      || (getVideo() && getVideo().parentElement)
+      || document.body;
+  }
 
-    /* ---------- selector helpers (tries multiple fallbacks) ---------- */
-    function getVideo() {
-      return document.querySelector("video.shaka-video")
-        || document.querySelector("#videoContainer video")
-        || document.querySelector("video")
-        || null;
-    }
-    function getPlayerContainer() {
-      return document.querySelector("#videoContainer")
-        || document.querySelector(".video-js")
-        || document.querySelector(".shaka-controls-container")
-        || (getVideo() && getVideo().parentElement)
-        || document.body;
-    }
-    function getControlBar() {
-      return document.querySelector(".vjs-control-bar")
-        || document.querySelector(".shaka-controls-container")
-        || document.querySelector(".shaka-bottom-controls")
-        || null;
-    }
+  /* Floating UI Speed Selection Pill Buttons */
+  const RATES = [2, 1.75, 1.5, 1.25, 1, 0.75, 0.5];
 
-    /* ---------- UI: floating speed buttons (left) ---------- */
-    const RATES = [2, 1.75, 1.5, 1.25, 1, 0.75, 0.5];
+  function createUI(video) {
+    if (!video || document.getElementById("nt-speed-control")) return;
+    const parent = getPlayerContainer() || document.body;
+    if (getComputedStyle(parent).position === "static") parent.style.position = "relative";
 
-    function createUI(video) {
-      if (!video) return;
-      if (document.getElementById("nt-speed-control")) return;
-      const parent = getPlayerContainer() || document.body;
-      if (getComputedStyle(parent).position === "static") parent.style.position = "relative";
+    const container = document.createElement("div");
+    container.id = "nt-speed-control";
+    container.style.cssText = `
+      position:absolute; left:12px; top:12px; z-index:2147483647;
+      display:flex; gap:8px; align-items:center; pointer-events:auto;
+      transition:opacity .12s ease`;
 
-      const container = document.createElement("div");
-      container.id = "nt-speed-control";
-      container.style.cssText = `
-        position:absolute;
-        left:12px;
-        top:12px;
-        z-index:2147483647;
-        display:flex;
-        gap:8px;
-        align-items:center;
-        pointer-events:auto;
-        transition:opacity .12s ease`;
-      container.classList.remove("nt-hidden");
+    const base = "padding:4px 6px;font-size:11px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);" +
+                 "background:linear-gradient(180deg,rgba(0,0,0,0.46),rgba(255,255,255,0.02));" +
+                 "color:#eaf5ff;font-weight:600;cursor:pointer;transition:transform .12s ease;";
 
-      const base =
-        "padding:4px 6px;font-size:11px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);" +
-        "background:linear-gradient(180deg,rgba(0,0,0,0.46),rgba(255,255,255,0.02));" +
-        "color:#eaf5ff;font-weight:600;cursor:pointer;transition:transform .12s ease, box-shadow .12s ease;";
-
-      RATES.forEach((r) => {
-        const b = document.createElement("button");
-        b.textContent = `${r}x`;
-        b.dataset.rate = r;
-        b.style.cssText = base;
-        b.addEventListener("mouseenter", () => (b.style.transform = "translateY(-3px) scale(1.02)"));
-        b.addEventListener("mouseleave", () => (b.style.transform = ""));
-        b.addEventListener("click", () => {
-          video.playbackRate = r;
-          syncPlaybackRateUI(rateToLabel(r));
-          updateHighlight(r);
-        });
-        container.appendChild(b);
+    RATES.forEach((r) => {
+      const b = document.createElement("button");
+      b.textContent = `${r}x`;
+      b.dataset.rate = r;
+      b.style.cssText = base;
+      b.addEventListener("click", () => {
+        video.playbackRate = r;
+        syncPlaybackRateUI(`${r}x`);
+        updateHighlight(r);
       });
-
-      parent.appendChild(container);
-      updateHighlight(1);
-    }
-
-    /* ---------- sync w/ native Shaka / vjs dropdown label if present ---------- */
-    function rateToLabel(rate) {
-      return `${rate}x`;
-    }
-    function syncPlaybackRateUI(label) {
-      // shaka playback-rate control label
-      const shakaLbl = document.querySelector(".shaka-playbackrate-button span") || document.querySelector(".shaka-playbackrate-button");
-      if (shakaLbl) {
-        if (shakaLbl.tagName === "SPAN") shakaLbl.textContent = label;
-        else shakaLbl.innerText = label;
-      }
-      // vjs label
-      const vjsLbl = document.querySelector(".vjs-playback-rate-value");
-      if (vjsLbl) vjsLbl.textContent = label;
-    }
-
-    /* ---------- native-style dropdown injection (if player lacks it) ---------- */
-      
-    /*the old function no needed more*/
-
-    // function injectSpeedDropdown() {
-    //   const controlBar = getControlBar();
-    //   if (!controlBar) return;
-    //   if (controlBar.querySelector(".nt-injected-playback-rate")) return;
-
-    //   // try to attach near Shaka's settings container if available
-    //   const wrapper = document.createElement("div");
-    //   wrapper.className = "nt-injected-playback-rate";
-    //   wrapper.style.cssText = "margin-left:8px;display:flex;align-items:center;gap:6px";
-
-    //   const label = document.createElement("div");
-    //   label.className = "nt-playback-rate-value";
-    //   label.textContent = "1x";
-    //   label.style.cssText = "font-weight:600;min-width:36px;text-align:center;color:#eaf5ff";
-
-    //   const menu = document.createElement("div");
-    //   menu.className = "nt-playback-rate-menu";
-    //   menu.style.cssText = "display:flex;gap:6px";
-
-    //   [0.5, 1, 1.5, 2].forEach((rate) => {
-    //     const li = document.createElement("button");
-    //     li.className = "nt-menu-item";
-    //     li.textContent = `${rate}x`;
-    //     li.style.cssText = "padding:4px 8px;border-radius:6px;background:transparent;color:#eaf5ff;border:1px solid rgba(255,255,255,0.04);cursor:pointer";
-    //     li.onclick = () => {
-    //       const video = getVideo();
-    //       if (video) video.playbackRate = rate;
-    //       label.textContent = `${rate}x`;
-    //       updateHighlight(rate);
-    //     };
-    //     menu.appendChild(li);
-    //   });
-
-    //   wrapper.appendChild(label);
-    //   wrapper.appendChild(menu);
-    //   controlBar.appendChild(wrapper);
-    // }
-
-    /* ---------- Clock overlay (top-right) ---------- */
-    window._nt_clock_enabled = window._nt_clock_enabled ?? true;
-    function addClock(video) {
-      if (!video || document.getElementById("nt-clock-overlay")) return;
-      const parent = getPlayerContainer() || document.body;
-      if (getComputedStyle(parent).position === "static") parent.style.position = "relative";
-
-      const clock = document.createElement("div");
-      clock.id = "nt-clock-overlay";
-      clock.style.cssText = `
-        position:absolute;
-        top:12px;
-        right:12px;
-        font-size:14px;
-        font-weight:600;
-        color:#eaf5ff;
-        background:rgba(0,0,0,0.4);
-        padding:4px 8px;
-        border-radius:6px;
-        z-index:2147483647;
-        pointer-events:none;
-        font-family:Inter, system-ui;
-      `;
-      parent.appendChild(clock);
-
-      function updateClock() {
-        const now = new Date();
-        let hours = now.getHours();
-        let minutes = now.getMinutes();
-        // 24 hr formate || 12 hr formate
-        hours = hours % 12 || 12;
-        if (minutes < 10) minutes = "0" + minutes;
-        clock.textContent = `${hours}:${minutes}`;
-      }
-      updateClock();
-      // keep reference so we can clear later if needed
-      window._nt_clock_interval = window._nt_clock_interval || setInterval(updateClock, 1000);
-    }
-
-    /* ---------- attach UIs when video appears ---------- */
-    let attachObserver = null;
-    function tryAttach() {
-      const video = getVideo();
-      if (video) {
-        createUI(video);
-        // injectSpeedDropdown();
-        if (window._nt_clock_enabled) addClock(video);
-      }
-    }
-    tryAttach();
-
-    // Hide the top-left arrow button permanently
-    const hideArrow = () => {
-      const arrow = document.querySelector('.helpHead.audio-player__top');
-      if (arrow) arrow.style.display = 'none';
-    };
-    hideArrow();
-    const arrowObs = new MutationObserver(hideArrow);
-    arrowObs.observe(document.body, { childList: true, subtree: true });
-
-    attachObserver = new MutationObserver(() => tryAttach());
-    attachObserver.observe(document.documentElement, { childList: true, subtree: true });
-
-    /* ---------- highlight helper ---------- */
-    function updateHighlight(rate) {
-      const container = document.getElementById("nt-speed-control");
-      if (!container) return;
-      container.querySelectorAll("button").forEach((btn) => {
-        if (parseFloat(btn.dataset.rate) === parseFloat(rate)) {
-          btn.style.background = "white";
-          btn.style.color = "black";
-        } else {
-          btn.style.background =
-            "linear-gradient(180deg,rgba(0,0,0,0.46),rgba(255,255,255,0.02))";
-          btn.style.color = "#eaf5ff";
-        }
-      });
-    }
-
-    // expose for keyboard handlers
-    window.createUI = createUI;
-    window.updateHighlight = updateHighlight;
-    window.addClock = addClock;
-  });
-});
-
-/* -------------------------
-   Auto-reload control (background handles reload)
-   ------------------------- */
-chrome.storage.local.get("autoReloadEnabled", (data) => {
-  reloadSwitch.checked = data.autoReloadEnabled ?? false;
-});
-reloadSwitch.addEventListener("change", () => {
-  const enabled = reloadSwitch.checked;
-  chrome.storage.local.set({ autoReloadEnabled: enabled });
-  chrome.runtime.sendMessage({ autoReloadEnabled: enabled });
-});
-document.getElementById("reloadRow").addEventListener("click", (e) => {
-  if (e.target.id === "reloadSwitch") return;
-  reloadSwitch.checked = !reloadSwitch.checked;
-  reloadSwitch.dispatchEvent(new Event("change"));
-});
-
-/* ===========================
-   SHORTCUTS / POLL / SPAM / CHAT HELPERS
-   Injected into page when Enable Shortcuts is clicked
-   =========================== */
-shortcutsBtn.addEventListener("click", () => {
-  execOnPage(() => {
-    if (window._nt_shortcuts_active) return;
-    window._nt_shortcuts_active = true;
-
-    /* ----------------
-       Small helper: locate chat input (updated for new UI)
-       ---------------- */
-    function getChatInput() {
-      return document.querySelector("input.input_field")
-        || document.querySelector("textarea.chat-input")
-        || document.querySelector("[data-chat-input='true']")
-        || document.querySelector("[contenteditable='true']")
-        || null;
-    }
-
-    function isTypingInChat() {
-      const ae = document.activeElement;
-      const chat = getChatInput();
-      if (!ae) return false;
-      if (["INPUT", "TEXTAREA"].includes(ae.tagName)) return true;
-      if (ae.isContentEditable) return true;
-      if (chat && (ae === chat || chat.contains(ae))) return true;
-      return false;
-    }
-
-
-    /* ===========================
-   AUTO REMOVE POLL BUTTON
-   (ONLY in live class video fullscreen)
-   =========================== */
-    (function () {
-      if (window._nt_poll_auto_remove) return;
-      window._nt_poll_auto_remove = true;
-    
-      const POLL_SELECTOR = "#custom-poll-floating-btn";
-      let pollObserver = null;
-    
-      function isClassVideoFullscreen() {
-        const fs = document.fullscreenElement;
-        if (!fs) return false;
-    
-        return (
-          fs.id === "videoContainer" ||
-          fs.classList?.contains("video-js") ||
-          fs.querySelector?.("video") ||
-          fs.closest?.("#videoContainer")
-        );
-      }
-    
-      function removePollBtn() {
-        const poll = document.querySelector(POLL_SELECTOR);
-        if (poll) {
-          poll.remove();
-          console.log("[NT] Poll floating button removed");
-        }
-      }
-    
-      function startObserver() {
-        if (pollObserver) return;
-    
-        pollObserver = new MutationObserver(() => {
-          if (isClassVideoFullscreen()) {
-            removePollBtn();
-          }
-        });
-    
-        pollObserver.observe(document.body, {
-          childList: true,
-          subtree: true
-        });
-      }
-    
-      function stopObserver() {
-        if (pollObserver) {
-          pollObserver.disconnect();
-          pollObserver = null;
-        }
-      }
-    
-      document.addEventListener("fullscreenchange", () => {
-        if (isClassVideoFullscreen()) {
-          removePollBtn();
-          startObserver();
-        } else {
-          stopObserver();
-        }
-      });
-    
-      // If already in class fullscreen when injected
-      if (isClassVideoFullscreen()) {
-        removePollBtn();
-        startObserver();
-      }
-    })();
-
-      
-
-    /* ----------
-       Modal / Panel helpers
-       ---------- */
-    function createModalShell() {
-      if (document.getElementById("__nt_modal")) return document.getElementById("__nt_modal").querySelector("div");
-      const wrap = document.createElement("div");
-      wrap.id = "__nt_modal";
-      wrap.style = `
-        position:fixed; inset:0; display:flex;align-items:center;justify-content:center;
-        z-index:2147483647; pointer-events:auto;
-      `;
-      const backdrop = document.createElement("div");
-      backdrop.style = `
-        position:absolute; inset:0; background:rgba(3,6,12,0.66); backdrop-filter: blur(6px);
-      `;
-      const card = document.createElement("div");
-      card.style = `
-        position:relative; width:420px; max-width:92%; border-radius:12px; padding:18px;
-        background: linear-gradient(180deg, rgba(18,20,24,0.98), rgba(13,15,18,0.98));
-        box-shadow: 0 18px 48px rgba(2,6,23,0.8); color:#e8f1ff; font-family: Inter, system-ui;
-        transform: translateY(8px); opacity:0; transition: all .22s cubic-bezier(.2,.9,.3,1);
-      `;
-      setTimeout(() => { card.style.transform = 'translateY(0)'; card.style.opacity = '1'; }, 10);
-      wrap.appendChild(backdrop); wrap.appendChild(card);
-      document.body.appendChild(wrap);
-      backdrop.addEventListener('click', () => { wrap.remove(); });
-      return card;
-    }
-
-    function createPanelBottomLeft() {
-      const existing = document.getElementById("__nt_poll_panel");
-      if (existing) return existing.querySelector("div") || existing;
-      const wrap = document.createElement("div");
-      wrap.id = "__nt_poll_panel";
-      wrap.style = `
-        position:fixed;
-        left:12px;
-        bottom:12px;
-        z-index:2147483647;
-        pointer-events:auto;
-        font-family:Inter,system-ui;
-      `;
-      const card = document.createElement("div");
-      card.style = `
-        min-width:260px;
-        max-width:360px;
-        border-radius:10px;
-        padding:10px;
-        background: linear-gradient(180deg, rgba(18,20,24,0.92), rgba(13,15,18,0.92));
-        color:#e8f1ff;
-        box-shadow:0 8px 28px rgba(0,0,0,0.6);
-        font-size:13px;
-      `;
-      wrap.appendChild(card);
-      document.body.appendChild(wrap);
-      return card;
-    }
-
-    function flashMessage(text, color = '#1e90ff') {
-      const d = document.createElement('div');
-      d.textContent = text;
-      d.style = `
-        position:fixed; right:20px; bottom:22px; background:${color}; color:white; padding:8px 12px;
-        border-radius:8px; z-index:2147483647; font-weight:600; box-shadow:0 8px 30px rgba(2,6,23,0.6);
-      `;
-      document.body.appendChild(d);
-      setTimeout(() => d.style.opacity = '0', 1800);
-      setTimeout(() => d.remove(), 2300);
-    }
-
-    /* ========= Poll modal & logic (bottom-left panel) ========= */
-    window._nt_active_poll_observer = window._nt_active_poll_observer || null;
-    window._nt_poll_choice = window._nt_poll_choice || null;
-    window._nt_poll_start = window._nt_poll_start || null;
-
-    function openPollModal() {
-      const shell = createPanelBottomLeft();
-      shell.innerHTML = '';
-
-      const title = document.createElement('div'); title.style = 'font-size:15px;font-weight:700;margin-bottom:8px'; title.textContent = 'Auto-answer Poll';
-      const desc = document.createElement('div'); desc.style='color:rgba(255,255,255,0.72);font-size:13px;margin-bottom:10px'; desc.textContent='Choose option number to Auto-select when poll appears.';
-      const inputRow = document.createElement('div'); inputRow.style='display:flex;gap:8px;margin-bottom:10px';
-      const input = document.createElement('input'); input.type='number'; input.min='1'; input.placeholder='Option #'; input.style='flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#eaf6ff;';
-      input.value = window._nt_poll_choice || '';
-      // ensure enabled and focused
-      setTimeout(()=>{ try{ input.removeAttribute('disabled'); input.focus(); input.select(); }catch(e){} }, 10);
-
-      const startBtn = document.createElement('button'); startBtn.textContent='Start Waiting'; startBtn.style='padding:8px;border-radius:8px;background:linear-gradient(90deg,#7c5cff,#6ee7b7);color:#071023;font-weight:700;border:0;cursor:pointer;';
-      const stopBtn = document.createElement('button'); stopBtn.textContent='Stop Waiting'; stopBtn.style='padding:8px;border-radius:8px;background:#2b2f34;color:#fff;border:0;cursor:pointer;margin-left:6px';
-
-      inputRow.appendChild(input); inputRow.appendChild(startBtn); inputRow.appendChild(stopBtn);
-
-      const info = document.createElement('div'); info.style='font-size:12px;color:var(--muted);margin-bottom:6px'; info.textContent='Leave it blank and press enter to cancel previous auto-poll.';
-
-      shell.appendChild(title); shell.appendChild(desc); shell.appendChild(inputRow); shell.appendChild(info);
-
-      // Up/down inside input to change option and prevent global arrow handling
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-          e.preventDefault(); e.stopPropagation();
-          const cur = parseInt(input.value) || 0;
-          input.value = (e.key === 'ArrowUp') ? Math.max(1, cur + 1) : Math.max(1, cur - 1);
-          return;
-        }
-        if (e.key === 'Enter') {
-          e.preventDefault(); e.stopPropagation();
-          const val = parseInt(input.value);
-          if (val && val > 0) startBtn.click();
-          else stopBtn.click();
-        }
-      });
-
-      // Start waiting: set observer to detect 'Attempt' button then answer
-      startBtn.addEventListener('click', () => {
-        const val = parseInt(input.value);
-        if (!val || val < 1) {
-          input.style.outline = '2px solid rgba(255,80,80,0.18)'; return;
-        }
-        if (window._nt_active_poll_observer) {
-          window._nt_active_poll_observer.disconnect();
-          window._nt_active_poll_observer = null;
-          flashMessage('Previous auto-poll cancelled', '#e74c3c');
-        }
-        window._nt_poll_choice = val;
-        window._nt_poll_start = Date.now();
-
-        const obs = new MutationObserver(() => {
-          const attemptBtn = Array.from(document.querySelectorAll('button'))
-            .find(b => b.innerText && b.innerText.trim().toLowerCase() === 'attempt');
-          if (attemptBtn) {
-            attemptBtn.click();
-            setTimeout(() => {
-              const options = Array.from(document.querySelectorAll('input[type="radio"], .poll-option, .option-item'));
-              if (options[window._nt_poll_choice - 1]) {
-                try { options[window._nt_poll_choice - 1].click(); } catch(e){}
-              }
-              const submitBtn = Array.from(document.querySelectorAll('button'))
-                .find(b => b.innerText && b.innerText.trim().toLowerCase() === 'submit');
-              if (submitBtn) {
-                submitBtn.click();
-                const elapsed = ((Date.now() - window._nt_poll_start)/1000).toFixed(2);
-                flashMessage(`Auto-poll answered in ${elapsed}s`, '#2ecc71');
-              }
-            }, 350);
-            obs.disconnect();
-            window._nt_active_poll_observer = null;
-            const wrap = document.getElementById('__nt_poll_panel'); if (wrap) wrap.remove();
-          }
-        });
-        obs.observe(document.body, { childList:true, subtree:true });
-        window._nt_active_poll_observer = obs;
-        flashMessage(`Waiting for poll – option ${val}`, '#f39c12');
-        const wrap = document.getElementById('__nt_poll_panel'); if (wrap) wrap.remove();
-      });
-
-      // Stop waiting: disconnect observer
-      stopBtn.addEventListener('click', () => {
-        if (window._nt_active_poll_observer) {
-          window._nt_active_poll_observer.disconnect();
-          window._nt_active_poll_observer = null;
-          flashMessage('Auto-poll stopped', '#e74c3c');
-        } else {
-          flashMessage('No active auto-poll', '#f39c12');
-        }
-        const wrap = document.getElementById('__nt_poll_panel'); if (wrap) wrap.remove();
-      });
-    }
-
-    /* ========= Auto-message modal & logic ========= */
-    window._nt_spam_interval = window._nt_spam_interval || null;
-    window._nt_auto_interval_default = window._nt_auto_interval_default || '0.1';
-    window._nt_last_auto_msg = window._nt_last_auto_msg || '';
-
-    function openAutoMessageModal() {
-      const shell = createModalShell();
-      shell.innerHTML = '';
-
-      const title = document.createElement('div'); title.style='font-size:16px;font-weight:700;margin-bottom:8px'; title.textContent='Auto-message';
-      const desc = document.createElement('div'); desc.style='color:rgba(255,255,255,0.72);font-size:13px;margin-bottom:10px'; desc.textContent='Enter message and interval (seconds). Press Enter to Start/Stop. Shift+Enter = newline.';
-
-      const msgBox = document.createElement('textarea');
-      msgBox.placeholder = 'Message to send...';
-      msgBox.style = 'width:100%;height:80px;border-radius:10px;padding:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#eaf6ff;margin-bottom:10px';
-      msgBox.value = window._nt_last_auto_msg || '';
-
-      const row = document.createElement('div'); row.style = 'display:flex;gap:8px;align-items:center;margin-bottom:12px';
-
-      const timeInput = document.createElement('input');
-      timeInput.type = 'number';
-      timeInput.step = '0.1'; timeInput.min = '0.1';
-      timeInput.value = (window._nt_auto_interval_default || '0.1');
-      timeInput.style = 'padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:#eaf6ff;width:80px';
-
-      const startBtn = document.createElement('button'); startBtn.textContent='Start'; startBtn.style='padding:8px 12px;border-radius:8px;background:linear-gradient(90deg,#6ee7b7,#7c5cff);border:0;color:#071023;font-weight:700;cursor:pointer';
-      const stopBtn = document.createElement('button'); stopBtn.textContent='Stop'; stopBtn.style='padding:8px 10px;border-radius:8px;background:#2b2f34;color:#fff;border:0;cursor:pointer;margin-left:6px';
-
-      row.appendChild(timeInput); row.appendChild(startBtn); row.appendChild(stopBtn);
-      shell.appendChild(title); shell.appendChild(desc); shell.appendChild(msgBox); shell.appendChild(row);
-
-      // focus textarea
-      setTimeout(()=>{ try{ msgBox.removeAttribute('disabled'); msgBox.focus(); msgBox.select(); }catch(e){} }, 12);
-
-      startBtn.addEventListener('click', () => {
-        const message = msgBox.value && msgBox.value.trim();
-        if (!message) { msgBox.style.outline = '2px solid rgba(255,80,80,0.18)'; return; }
-        window._nt_last_auto_msg = message;
-        let intervalSec = parseFloat(timeInput.value);
-        if (!intervalSec || intervalSec < 0.05) intervalSec = parseFloat(window._nt_auto_interval_default || '0.1');
-        if (window._nt_spam_interval) clearInterval(window._nt_spam_interval);
-        sendChatMessage(message);
-        window._nt_spam_interval = setInterval(()=> sendChatMessage(message), Math.max(50, intervalSec*1000));
-        flashMessage(`Auto-message started every ${intervalSec}s`, '#2ecc71');
-        const wrap = document.getElementById('__nt_modal'); if (wrap) wrap.remove();
-      });
-
-      stopBtn.addEventListener('click', () => {
-        if (window._nt_spam_interval) {
-          clearInterval(window._nt_spam_interval);
-          window._nt_spam_interval = null;
-          flashMessage('Auto-message stopped', '#e74c3c');
-        } else {
-          flashMessage('No auto-message running', '#f39c12');
-        }
-        const wrap = document.getElementById('__nt_modal'); if (wrap) wrap.remove();
-      });
-
-      // Enter in textarea -> Start if text, else Stop
-      msgBox.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault(); e.stopPropagation();
-          const message = (msgBox.value || '').trim();
-          if (message.length > 0) startBtn.click(); else stopBtn.click();
-        }
-      });
-    }
-
-    /* ---------- send message helper (heuristic) ---------- */
-    function sendChatMessage(text) {
-      const input =
-        document.querySelector("input.input_field") ||
-        document.querySelector("textarea") ||
-        document.querySelector("[data-chat-input='true']") ||
-        document.querySelector("[contenteditable='true']");
-    
-      // find send button: either classic send OR your new UI
-      const sendBtn =
-        document.querySelector('button[type="submit"]') || // your new button
-        Array.from(document.querySelectorAll("button")).find((b) => {
-          const t = b.innerText && b.innerText.trim().toLowerCase();
-          return ["send", "submit", "send message"].includes(t) || b.querySelector("svg");
-        });
-    
-      if (input) {
-        // set value
-        if (input.isContentEditable) {
-          input.textContent = text;
-          const ev = new InputEvent("input", { bubbles: true });
-          input.dispatchEvent(ev);
-        } else {
-          input.value = text;
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-    
-        // *** actually click send button ***
-        if (sendBtn) {
-          sendBtn.click(); // click the new button
-        } else {
-          // fallback: Enter key
-          const enter = new KeyboardEvent("keydown", {
-            bubbles: true,
-            cancelable: true,
-            key: "Enter",
-            code: "Enter",
-          });
-          input.dispatchEvent(enter);
-        }
-      }
-    }
-
-
-    /* expose modals */
-    window.openPollModal = openPollModal;
-    window.openAutoMessageModal = openAutoMessageModal;
-
-    /* ---------- keyboard handling (global) ---------- */
-    // arrow guard to avoid site handlers while typing
-    if (!window._nt_arrow_guard) {
-      const guard = (e) => {
-        if (!isTypingInChat()) return;
-        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-          e.stopImmediatePropagation();
-          e.stopPropagation();
-        }
-      };
-      document.addEventListener("keydown", guard, true);
-      document.addEventListener("keyup", guard, true);
-      window._nt_arrow_guard = true;
-    }
-
-    // actual key handler
-    window.addEventListener("keydown", (e) => {
-      if (e.ctrlKey || e.altKey || e.metaKey) return;
-      // when typing in chat, allow only Escape to blur
-      if (isTypingInChat()) {
-        if (e.key === "Escape" && document.activeElement === getChatInput()) {
-          getChatInput().blur();
-        }
-        return;
-      }
-
-      const video = document.querySelector("video.shaka-video") || document.querySelector("video");
-
-      // Speed keys
-      if (e.key === "1") {
-          const v = document.querySelector("video.shaka-video") || document.querySelector("video");
-          if (v) {
-              v.playbackRate = 1.0;
-              if (window.updateHighlight) updateHighlight(1.0);
-              if (window.syncPlaybackRateUI) window.syncPlaybackRateUI('1x');
-          }
-          e.preventDefault();
-          return;
-      }
-    if (e.key === "2") {
-      const v = document.querySelector("video.shaka-video") || document.querySelector("video");
-      if (v) {
-        v.playbackRate = 2.0;
-        if (window.updateHighlight) updateHighlight(2.0);
-        if (window.syncPlaybackRateUI) window.syncPlaybackRateUI('2x');
-      }
-      e.preventDefault();
-      return;
-    }
-    if (e.key === "3") {
-      const v = document.querySelector("video.shaka-video") || document.querySelector("video");
-      if (v) {
-        v.playbackRate = 1.5;
-        if (window.updateHighlight) updateHighlight(1.5);
-        if (window.syncPlaybackRateUI) window.syncPlaybackRateUI('1.5x');
-      }
-      e.preventDefault();
-      return;
-    }
-
-
-      // Space toggle play/pause
-      if ((e.code === "Space" || e.key === "k") && video) { e.preventDefault(); video.paused ? video.play() : video.pause(); return; }
-
-      // T toggle clock overlay
-      if (e.key.toLowerCase() === "t") {
-        e.preventDefault();
-        const clk = document.getElementById("nt-clock-overlay");
-        if (clk) { clk.remove(); window._nt_clock_enabled = false; if (window._nt_clock_interval) { clearInterval(window._nt_clock_interval); window._nt_clock_interval = null; } }
-        else { window._nt_clock_enabled = true; const v = document.querySelector("video.shaka-video") || document.querySelector("video"); if (v && window.addClock) addClock(v); }
-        return;
-      }
-
-      // D toggle speed overlay visibility
-      if (e.key.toLowerCase() === "d") {
-        e.preventDefault();
-        const speed = document.getElementById("nt-speed-control");
-        if (speed) {
-          // toggle via class to avoid mutation observer re-adding visual glitch
-          if (speed.classList.contains("nt-hidden")) { speed.classList.remove("nt-hidden"); speed.style.display = "flex"; }
-          else { speed.classList.add("nt-hidden"); speed.style.display = "none"; }
-        } else {
-          const v = document.querySelector("video.shaka-video") || document.querySelector("video");
-          if (v && window.createUI) createUI(v);
-        }
-        return;
-      }
-
-      // F fullscreen toggle
-      if (e.key.toLowerCase() === "f" && video) {
-        e.preventDefault();
-        const container = video.closest('.video-js') || video.closest('#videoContainer') || video;
-        if (!document.fullscreenElement) { container.requestFullscreen?.(); container.webkitRequestFullscreen?.(); }
-        else { document.exitFullscreen?.(); document.webkitExitFullscreen?.(); }
-        return;
-      }
-
-      // Arrow skip
-      if (video && (e.key === "ArrowRight" || e.key === "l")) { e.preventDefault(); video.currentTime += 10; return; }
-      if (video && (e.key === "ArrowLeft" || e.key === "j"))  { e.preventDefault(); video.currentTime -= 10; return; }
-
-      // C focus chat (you changed earlier from T to C)
-      if (e.key.toLowerCase() === "c") {
-        // Automatically click the Live Chat tab at the top of the page
-        document.getElementById("uncontrolled-tab-example-tab-Live Chat")?.click();
-        const chat = getChatInput();
-        if (chat) { e.preventDefault(); chat.focus(); return; }
-      }
-
-      // M mute/unmute
-      if (e.key.toLowerCase() === "m") {
-        e.preventDefault();
-        const v = document.querySelector("video.shaka-video") || document.querySelector("video");
-        if (v) {
-          v.muted = !v.muted;
-          const msg = v.muted ? "Video Muted" : "Video Unmuted";
-          const d = document.createElement('div'); d.textContent = msg;
-          d.style = `position:fixed; right:20px; bottom:22px; background:#1e90ff; color:white; padding:8px 12px; border-radius:8px; z-index:2147483647; font-weight:600; box-shadow:0 8px 30px rgba(2,6,23,0.6);`;
-          document.body.appendChild(d);
-          setTimeout(()=> d.style.opacity='0', 1400);
-          setTimeout(()=> d.remove(), 1900);
-        }
-        return;
-      }
-
-      // S open auto-message modal
-      if (e.key.toLowerCase() === "s") { e.preventDefault(); if (window.openAutoMessageModal) openAutoMessageModal(); return; }
-
-      // P open poll modal
-      if (e.key.toLowerCase() === "p") {
-          // Automatically click the Live Poll tab at the top of the page
-          document.getElementById("uncontrolled-tab-example-tab-Live Poll")?.click();
-          e.preventDefault(); if (window.openPollModal) openPollModal(); return; }
+      container.appendChild(b);
     });
-  });
-});
 
-/* ---------- Unlock chat cooldown ---------- */
-cooldownBtn.addEventListener("click", () => {
-  execOnPage(() => {
-    const tryUnlock = () => {
-      const input = document.querySelector("input.input_field[disabled]") || document.querySelector("textarea[disabled]");
-      if (input) input.removeAttribute("disabled");
-      const sendBtn = Array.from(document.querySelectorAll("button")).find((b) => (b.innerText || "").trim().toLowerCase() === "send");
-      if (sendBtn && sendBtn.disabled) sendBtn.disabled = false;
-    };
-    const obs = new MutationObserver(tryUnlock);
-    obs.observe(document.body, { childList: true, subtree: true });
-    tryUnlock();
-  });
-});
+    parent.appendChild(container);
+    updateHighlight(1);
+  }
 
-/* ---------- Enable Copy/Paste ---------- */
-pasteBtn.addEventListener("click", () => {
-  execOnPage(() => {
-    const input = document.querySelector("input.input_field") || document.querySelector("textarea") || document.activeElement;
-    if (input) {
-      input.removeAttribute("onpaste"); input.removeAttribute("oncopy"); input.onpaste = null; input.oncopy = null;
-      const allow = (e) => { e.stopImmediatePropagation(); return true; };
-      document.addEventListener("paste", allow, true);
-      document.addEventListener("copy", allow, true);
+  function syncPlaybackRateUI(label) {
+    const vjsLbl = document.querySelector(".vjs-playback-rate-value");
+    if (vjsLbl) vjsLbl.textContent = label;
+  }
+
+  function updateHighlight(rate) {
+    const container = document.getElementById("nt-speed-control");
+    if (!container) return;
+    container.querySelectorAll("button").forEach((btn) => {
+      if (parseFloat(btn.dataset.rate) === parseFloat(rate)) {
+        btn.style.background = "white"; btn.style.color = "black";
+      } else {
+        btn.style.background = "linear-gradient(180deg,rgba(0,0,0,0.46),rgba(255,255,255,0.02))";
+        btn.style.color = "#eaf5ff";
+      }
+    });
+  }
+
+  /* HUD Clock Overlay */
+  window._nt_clock_enabled = window._nt_clock_enabled ?? true;
+  function addClock(video) {
+    if (!video || document.getElementById("nt-clock-overlay")) return;
+    const parent = getPlayerContainer() || document.body;
+
+    const clock = document.createElement("div");
+    clock.id = "nt-clock-overlay";
+    clock.style.cssText = `
+      position:absolute; top:12px; right:12px; font-size:14px; font-weight:600;
+      color:#eaf5ff; background:rgba(0,0,0,0.4); padding:4px 8px; border-radius:6px;
+      z-index:2147483647; pointer-events:none; font-family:system-ui, sans-serif;
+    `;
+    parent.appendChild(clock);
+
+    function updateClock() {
+      const now = new Date();
+      let hours = now.getHours() % 12 || 12;
+      let minutes = now.getMinutes();
+      clock.textContent = `${hours}:${minutes < 10 ? "0" + minutes : minutes}`;
     }
+    updateClock();
+    window._nt_clock_interval = window._nt_clock_interval || setInterval(updateClock, 1000);
+  }
+
+  let video = getVideo();
+  if (video) { createUI(video); if (window._nt_clock_enabled) addClock(video); }
+
+  // Permanently hide site's built-in top page back layout headers
+  const hideArrow = () => { const arrow = document.querySelector('.helpHead.audio-player__top'); if (arrow) arrow.style.display = 'none'; };
+  hideArrow();
+  new MutationObserver(hideArrow).observe(document.body, { childList: true, subtree: true });
+  
+  window.updateHighlight = updateHighlight;
+  window.createUI = createUI;
+  window.addClock = addClock;
+}
+
+/* =========================================================
+   2. KEYBOARD SHORTCUTS, ACCUMULATING SEEK & MODAL LOGIC
+   ========================================================= */
+function injectShortcutsAndModals() {
+  if (window._nt_shortcuts_active) return;
+  window._nt_shortcuts_active = true;
+
+  function getChatInput() {
+    return document.querySelector("input.w-full.text-gray-600") 
+      || document.querySelector(".player_container input[type='text']") 
+      || document.querySelector("input.input_field")
+      || null;
+  }
+  function isTypingInChat() {
+    const ae = document.activeElement;
+    return ae && (["INPUT", "TEXTAREA"].includes(ae.tagName) || ae.isContentEditable);
+  }
+
+  /* 🎬 YouTube Mobile & Widescreen Double-Tap/Double-Click Skip Logic */
+  let lastTapTime = 0, consecutiveTapCount = 0, accumTimer = null, totalSkipped = 0;
+  
+  function showSkipOverlay(direction, totalAmount) {
+    let overlay = document.getElementById("nt-skip-bubble");
+    if (!overlay) {
+      overlay = document.createElement("div"); overlay.id = "nt-skip-bubble";
+      overlay.style.cssText = `position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:12px 20px;border-radius:30px;font-weight:bold;z-index:2147483647;pointer-events:none;transition:opacity 0.2s ease;font-family:system-ui, sans-serif;`;
+      const container = document.querySelector("#vjs_video_3") || document.querySelector(".video-js") || document.body;
+      container.appendChild(overlay);
+    }
+    overlay.style.left = direction === "forward" ? "" : "15%";
+    overlay.style.right = direction === "forward" ? "15%" : "";
+    overlay.innerHTML = direction === "forward" ? `⏩ +${totalAmount}s` : `⏪ -${totalAmount}s`;
+    overlay.style.opacity = "1";
+    clearTimeout(window._nt_skip_fade_timeout);
+    window._nt_skip_fade_timeout = setTimeout(() => overlay.style.opacity = "0", 800);
+  }
+
+  function handleSideInteraction(clientX, targetWidth) {
+    const video = document.querySelector("#vjs_video_3_html5_api") || document.querySelector("video"); 
+    if (!video) return;
+    const direction = clientX > (targetWidth / 2) ? "forward" : "backward";
+    
+    consecutiveTapCount++;
+    totalSkipped = consecutiveTapCount * 10;
+    video.currentTime += direction === "forward" ? 10 : -10;
+    
+    showSkipOverlay(direction, totalSkipped);
+    clearTimeout(accumTimer);
+    accumTimer = setTimeout(() => { consecutiveTapCount = 0; totalSkipped = 0; }, 650);
+  }
+
+  const playerContainer = document.querySelector("#vjs_video_3") || document.querySelector(".video-js") || document.body;
+  
+  // Mobile touch event routing
+  playerContainer.addEventListener("touchstart", (e) => {
+    if (e.target.closest("#nt-speed-control, #nt-clock-overlay, .vjs-control-bar")) return;
+    const now = Date.now();
+    const rect = playerContainer.getBoundingClientRect();
+    if (now - lastTapTime < 300) { 
+      e.preventDefault(); 
+      handleSideInteraction(e.touches[0].clientX - rect.left, rect.width); 
+    }
+    lastTapTime = now;
+  }, { passive: false });
+
+  // Desktop double-click mapping
+  playerContainer.addEventListener("dblclick", (e) => {
+    if (e.target.closest("#nt-speed-control, #nt-clock-overlay, .vjs-control-bar")) return;
+    const rect = playerContainer.getBoundingClientRect();
+    handleSideInteraction(e.clientX - rect.left, rect.width);
   });
-});
 
-/* ---------- Poll button in popup (mirrors P key) ---------- */
-pollBtn.addEventListener("click", () => {
-  execOnPage(() => {
-    if (window.openPollModal) window.openPollModal();
+  /* Modern Glass Modal Shell Generator */
+  function createModalShell() {
+    if (document.getElementById("__nt_modal")) return document.getElementById("__nt_modal").querySelector("div");
+    const wrap = document.createElement("div"); wrap.id = "__nt_modal";
+    wrap.style = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:2147483647;";
+    const backdrop = document.createElement("div"); backdrop.style = "position:absolute;inset:0;background:rgba(3,6,12,0.7);backdrop-filter:blur(6px);";
+    const card = document.createElement("div"); card.style = "position:relative;width:340px;border-radius:14px;padding:20px;background:#101216;color:#e8f1ff;font-family:sans-serif;box-shadow:0 20px 40px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.05);";
+    wrap.appendChild(backdrop); wrap.appendChild(card); document.body.appendChild(wrap);
+    backdrop.addEventListener('click', () => wrap.remove());
+    return card;
+  }
+
+  function flashMessage(text) {
+    const d = document.createElement('div'); d.textContent = text;
+    d.style = "position:fixed;right:20px;bottom:22px;background:#7c5cff;color:white;padding:8px 14px;border-radius:8px;z-index:2147483647;font-weight:600;font-family:sans-serif;box-shadow: 0 4px 12px rgba(0,0,0,0.3);";
+    document.body.appendChild(d); setTimeout(() => d.remove(), 2000);
+  }
+
+  /* Auto Poll Management Subsystems */
+  window.openPollModal = function() {
+    const shell = createModalShell(); 
+    shell.innerHTML = `
+      <h3 style="margin-top:0;font-family:sans-serif;">Auto Poll Pre-Selector</h3>
+      <p style="font-size:12px;color:#8a99ad;margin-top:-8px;">Queue your option choice below. It will instantly click the tab, choose the option, and submit as soon as the teacher launches it.</p>
+    `;
+
+    const input = document.createElement('input'); 
+    input.type = 'number'; 
+    input.placeholder = 'Option Number (e.g., 1, 2, 3, 4)'; 
+    input.style = 'width:93%;padding:10px;margin-bottom:10px;background:#1a1d24;border:1px solid rgba(255,255,255,0.08);color:#fff;border-radius:8px;outline:none;';
+    input.value = window._nt_poll_choice || ''; 
+    shell.appendChild(input);
+    setTimeout(() => input.focus(), 50);
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        window._nt_poll_choice = parseInt(input.value) || null;
+        
+        if (window._nt_poll_choice) {
+          if(window._nt_obs) window._nt_obs.disconnect();
+          
+          // Setup a high-speed observer to track exactly when an incoming poll element appears
+          window._nt_obs = new MutationObserver(() => {
+            // Find and force click into the site's "Poll" layout tab instantly
+            const tabs = Array.from(document.querySelectorAll(".tab_list button, .tab_list span"));
+            const pollTab = tabs.find(el => el.textContent?.trim().toLowerCase() === "poll");
+            
+            // Check if there are options or action items present inside the player container panels
+            const hasPollActive = document.querySelector(".rgt_side input[type='radio']") 
+              || document.querySelector(".poll-option") 
+              || document.querySelector(".option-item")
+              || Array.from(document.querySelectorAll("button")).some(b => b.innerText?.toLowerCase().includes('attempt') || b.innerText?.toLowerCase().includes('submit'));
+
+            if (hasPollActive) {
+              if (pollTab) pollTab.closest("button")?.click();
+
+              // Heuristic: Auto-click "Attempt" if the site prompts a confirmation layout wrapper first
+              const attemptBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText?.toLowerCase().includes('attempt'));
+              if (attemptBtn) attemptBtn.click();
+
+              // Match option choices dynamically by counting DOM structures matching the index selection
+              setTimeout(() => {
+                const options = Array.from(document.querySelectorAll(".rgt_side input[type='radio'], .poll-option, .option-item, .rgt_side li button"));
+                const targetIndex = window._nt_poll_choice - 1;
+                
+                if (options[targetIndex]) {
+                  options[targetIndex].click();
+                  
+                  // Instantly hit the final Submit button to lock it in
+                  const submitBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText?.toLowerCase().includes('submit'));
+                  if (submitBtn) submitBtn.click();
+                }
+              }, 150);
+            }
+          });
+          
+          window._nt_obs.observe(document.body, { childList: true, subtree: true });
+          flashMessage(`Pre-selected Option ${window._nt_poll_choice}`);
+        } else {
+          if(window._nt_obs) window._nt_obs.disconnect(); 
+          flashMessage("Auto-poll pre-selection cleared");
+        }
+        document.getElementById("__nt_modal").remove();
+      }
+    });
+  };
+
+  /* Auto Spammer Subsystems */
+  /* Auto Spammer Subsystems with Custom Interval Timer */
+  window.openAutoMessageModal = function() {
+    const shell = createModalShell(); 
+    shell.innerHTML = `
+      <h3 style="margin-top:0;font-family:sans-serif;">Message Broadcast Spammer</h3>
+      <p style="font-size:12px;color:#8a99ad;margin-top:-8px;">Set message, interval (seconds), and press Enter to toggle.</p>
+    `;
+
+    const txt = document.createElement('textarea'); 
+    txt.placeholder = 'Message text...'; 
+    txt.style = 'width:94%;height:60px;background:#1a1d24;color:#fff;border-radius:8px;padding:8px;border:1px solid rgba(255,255,255,0.08);outline:none;resize:none;margin-bottom:10px;';
+    txt.value = window._nt_last_msg || ''; 
+    shell.appendChild(txt);
+
+    const row = document.createElement('div');
+    row.style = 'display:flex;gap:10px;align-items:center;';
+    
+    const label = document.createElement('span');
+    label.textContent = 'Interval (s):';
+    label.style = 'font-size:12px;color:#8a99ad;';
+    
+    const timeInput = document.createElement('input');
+    timeInput.type = 'number';
+    timeInput.step = '0.1';
+    timeInput.min = '0.1';
+    timeInput.value = window._nt_spam_interval_val || '0.1';
+    timeInput.style = 'width:70px;padding:6px;background:#1a1d24;color:#fff;border:1px solid rgba(255,255,255,0.08);border-radius:6px;outline:none;';
+    
+    row.appendChild(label);
+    row.appendChild(timeInput);
+    shell.appendChild(row);
+
+    setTimeout(() => txt.focus(), 50);
+
+    // Helper setup to trigger execution loop
+    const startSpam = () => {
+      window._nt_last_msg = txt.value.trim();
+      window._nt_spam_interval_val = parseFloat(timeInput.value) || 0.1;
+      
+      if (window._nt_last_msg) {
+        if(window._nt_spam) clearInterval(window._nt_spam);
+        
+        // Immediate first send action
+        const runSend = () => {
+          const inp = getChatInput();
+          if (inp) {
+            inp.removeAttribute("disabled"); // Extra safety lock check
+            inp.value = window._nt_last_msg; 
+            inp.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            const sBtn = document.querySelector(".player_container button[type='submit']") 
+              || Array.from(document.querySelectorAll("button")).find(b => b.innerText?.toLowerCase().includes('send'));
+            if (sBtn) {
+              sBtn.removeAttribute("disabled");
+              sBtn.click();
+            }
+          }
+        };
+        
+        runSend();
+        window._nt_spam = setInterval(runSend, Math.max(50, window._nt_spam_interval_val * 1000));
+        flashMessage(`Spam transmission active (${window._nt_spam_interval_val}s)`);
+      } else {
+        clearInterval(window._nt_spam); 
+        window._nt_spam = null;
+        flashMessage("Spam engine stopped");
+      }
+      const m = document.getElementById("__nt_modal"); if(m) m.remove();
+    };
+
+    txt.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        startSpam();
+      }
+    });
+
+    timeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        startSpam();
+      }
+    });
+  };
+
+  /* Global Keyboard Action Routers */
+  window.addEventListener("keydown", (e) => {
+    if (isTypingInChat()) {
+      if (e.key === "Escape") getChatInput().blur();
+      return;
+    }
+    const video = document.querySelector("#vjs_video_3_html5_api") || document.querySelector("video");
+    if (e.key === "1" && video) { video.playbackRate = 1.0; window.updateHighlight?.(1.0); }
+    if (e.key === "2" && video) { video.playbackRate = 2.0; window.updateHighlight?.(2.0); }
+    if (e.key === "3" && video) { video.playbackRate = 1.5; window.updateHighlight?.(1.5); }
+    if (e.code === "Space" && video) { e.preventDefault(); video.paused ? video.play() : video.pause(); }
+    if (e.key.toLowerCase() === "f" && video) {
+      const container = video.closest('.video-js') || video;
+      if (!document.fullscreenElement) container.requestFullscreen?.(); else document.exitFullscreen?.();
+    }
+    if (e.key.toLowerCase() === "t") {
+      const clk = document.getElementById("nt-clock-overlay");
+      if (clk) clk.remove(); else if(video) window.addClock?.(video);
+    }
+    if (e.key.toLowerCase() === "p") { 
+      e.preventDefault();
+      // Instantly snap to the Live Poll tab layout pane
+      const tabs = Array.from(document.querySelectorAll(".tab_list button, .tab_list span"));
+      const pollTab = tabs.find(el => el.textContent?.trim().toLowerCase() === "poll");
+      if (pollTab) pollTab.closest("button")?.click();
+      
+      window.openPollModal?.(); 
+    }
+    if (e.key.toLowerCase() === "s") { window.openAutoMessageModal?.(); }
   });
-});
+}
 
-/* ---------- Force Live (reload tab with isLive=1) ---------- */
-forceLiveBtn.addEventListener("click", () => {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs[0]) return;
+/* =========================================================
+   3. CHAT COOLDOWN & COPY/PASTE BYPASS OVERRIDES
+   ========================================================= */
+function unlockChatAndPaste() {
+  const forceEnableElements = () => {
+    // 1. Force remove the disabled status on the chat text input field
+    const input = document.querySelector(".player_container input[type='text']") 
+      || document.querySelector("input.w-full.text-gray-600")
+      || document.querySelector("input.input_field");
+    if (input) {
+      if (input.hasAttribute("disabled")) input.removeAttribute("disabled");
+      if (input.disabled) input.disabled = false;
+    }
 
-    const url = new URL(tabs[0].url);
+    // 2. Force remove the disabled status on the Orange Send Arrow button icon wrapper
+    const sendBtn = document.querySelector(".player_container button[type='submit']") 
+      || Array.from(document.querySelectorAll("button")).find(b => b.innerHTML.includes('paint0_linear_6730_5285') || b.innerText?.toLowerCase().includes('send'));
+    if (sendBtn) {
+      if (sendBtn.hasAttribute("disabled")) sendBtn.removeAttribute("disabled");
+      if (sendBtn.disabled) sendBtn.disabled = false;
+    }
+  };
 
-    // Change isLive=0 → isLive=1
-    url.searchParams.set("isLive", "1");
+  // Run immediately and listen for changes when NextToppers counts down the timer ticks
+  const chatObserver = new MutationObserver(forceEnableElements);
+  chatObserver.observe(document.body, { childList: true, subtree: true, attributes: true });
+  forceEnableElements();
 
-    chrome.tabs.update(tabs[0].id, { url: url.toString() });
-  });
-});
+  // 3. Absolute clipboard lock bypass engine (bypasses stopImmediatePropagation on site)
+  const allowClipboard = (e) => {
+    e.stopImmediatePropagation();
+    return true;
+  };
+  document.addEventListener("paste", allowClipboard, true);
+  document.addEventListener("copy", allowClipboard, true);
+  document.addEventListener("contextmenu", allowClipboard, true);
+}
 
-
-/* ---------- Master Button (enables main features) ---------- */
+/* =========================================================
+   4. POPUP UI BUTTON ACTION INTERFACES
+   ========================================================= */
 masterBtn.addEventListener("click", () => {
-  unlockBtn.click();
-  shortcutsBtn.click();
-  cooldownBtn.click();
-  pasteBtn.click();
-  // pollBtn.click(); // optional
+  execOnPage(injectSpeedAndOverlays);
+  execOnPage(injectShortcutsAndModals);
+  execOnPage(unlockChatAndPaste);
 });
 
-/* End of popup.js */
+pollBtn.addEventListener("click", () => {
+  execOnPage(injectShortcutsAndModals);
+  execOnPage(() => { if(window.openPollModal) window.openPollModal(); });
+});
+
+cooldownBtn.addEventListener("click", () => {
+  execOnPage(injectShortcutsAndModals);
+  execOnPage(() => { if(window.openAutoMessageModal) window.openAutoMessageModal(); });
+});
