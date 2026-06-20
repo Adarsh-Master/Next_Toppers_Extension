@@ -2,6 +2,11 @@
   "manifest_version": 3,
   "name": "NextToppers Pro Plus",
   "version": "6.7",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "testextension@example.com"
+    }
+  },
   "description": "Modern UI assistant: Unlocks playback features, shortcuts, auto-polls, and spam controls.",
   "permissions": ["tabs", "scripting"],
   "host_permissions": ["<all_urls>"],
